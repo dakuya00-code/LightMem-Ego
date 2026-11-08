@@ -1,0 +1,41 @@
+name: Build Rokid LightMem VPS APK
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Patch API URL and allow cleartext for testing
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("src/ai_glass_app/app/src/main")
+          cfg = root/"java/cn/zjukg/lightmem/glass/lightmem_ego/LightMemEgoConfig.kt"
+          manifest = root/"AndroidManifest.xml"
+          s=cfg.read_text()
+          old='const val API_BASE_URL = "https://lightmem-ego.zjukg.cn/api"'
+          assert old in s, "Unexpected upstream config; review required"
+          cfg.write_text(s.replace(old,'const val API_BASE_URL = "http://187.77.115.121:8000"',1))
+          s=manifest.read_text()
+          assert '<application' in s
+          manifest.write_text(s.replace('<application','<application android:usesCleartextTraffic="true"',1))
+          PY
+      - name: Build debug APK
+        working-directory: src/ai_glass_app
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rokid-lightmem-vps-debug-apk
+          path: src/ai_glass_app/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
