@@ -1,0 +1,25 @@
+name: Publish Rokid VPS test APK
+on:
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download APK from successful build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download --repo "$GITHUB_REPOSITORY" --name rokid-lightmem-vps-debug-apk --dir apk
+          test -s apk/app-debug.apk
+      - name: Publish APK as prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create rokid-vps-test-20261108 apk/app-debug.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Rokid VPS test APK" \
+            --notes "Testing only. Uses unencrypted HTTP to 187.77.115.121:8000. Do not use with sensitive audio/video." \
+            --prerelease
